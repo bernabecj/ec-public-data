@@ -14,11 +14,12 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 @pytest.fixture(autouse=True)
 def isolated_config(tmp_path, monkeypatch):
-    """Every test gets an empty cache in tmp_path, online mode and no retry delays."""
+    """Every test gets an empty cache in tmp_path, online mode and no retry or throttle delays."""
     monkeypatch.setattr(config, "cache_dir", tmp_path / "cache")
     monkeypatch.setattr(config, "cache_ttl", "7d")
     monkeypatch.setattr(config, "offline", False)
     monkeypatch.setattr(http, "BACKOFF", 0)
+    monkeypatch.setattr(http, "MIN_INTERVAL", 0)
     yield config
 
 

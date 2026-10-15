@@ -1,8 +1,10 @@
 from datetime import timedelta
 
 import httpx
+import pytest
 
 from ecuadata import cache, http
+from ecuadata.exceptions import SourceUnavailableError
 
 
 def test_cache_roundtrip_and_expiry():
@@ -15,3 +17,23 @@ def test_http_retries_server_errors(mock_http):
     responses = iter([httpx.Response(503), httpx.Response(200, content=b"ok")])
     mock_http(lambda request: next(responses))
     assert http.get("https://example.org/x").content == b"ok"
+
+
+def test_http_does_not_retry_connect_errors(mock_http):
+    def refuse(request):
+        raise httpx.ConnectTimeout("timed out", request=request)
+
+    seen = mock_http(refuse)
+    with pytest.raises(SourceUnavailableError, match="blocking"):
+        http.get("https://example.org/x")
+    assert len(seen) == 1
+
+
+def test_http_throttles_consecutive_requests(mock_http, monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(http, "MIN_INTERVAL", 2.0)
+    monkeypatch.setattr(http.time, "sleep", sleeps.append)
+    mock_http(lambda request: httpx.Response(200))
+    http.get("https://example.org/a")
+    http.get("https://example.org/b")
+    assert sleeps and 0 < sleeps[-1] <= 2.0
