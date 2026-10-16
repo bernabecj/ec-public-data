@@ -1,20 +1,21 @@
-"""Exceptions raised by ecuadata."""
+"""Excepciones que lanza ecuadata."""
 
 
 class EcuadataError(Exception):
-    """Base class for every error raised by ecuadata."""
+    """Clase base de todos los errores de ecuadata."""
 
 
 class SourceUnavailableError(EcuadataError):
-    """The publisher could not be reached, or the requested file does not exist."""
+    """No se pudo contactar a la institución, o el archivo solicitado no existe."""
 
 
 class ParseError(EcuadataError):
-    """A downloaded file did not have the layout the parser expects.
+    """Un archivo descargado no tiene el formato que espera el parser.
 
-    This usually means the publisher changed the file format. Please open an issue.
+    Casi siempre significa que la institución cambió el formato del archivo. Por favor abra
+    un issue en el repositorio.
     """
 
 
 class OfflineError(EcuadataError):
-    """Offline mode is on and the requested data is not in the cache."""
+    """El modo sin conexión está activo y los datos solicitados no están en el caché."""

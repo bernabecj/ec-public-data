@@ -59,9 +59,9 @@ def get(url: str) -> httpx.Response:
                 response = client.get(url)
             except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
                 raise SourceUnavailableError(
-                    f"Could not connect to {url} ({type(exc).__name__}: {exc}). The server may "
-                    "be down or blocking your IP after too many requests; try again later or "
-                    "from another network."
+                    f"No se pudo conectar con {url} ({type(exc).__name__}: {exc}). El servidor "
+                    "puede estar caído o bloqueando su IP por exceso de solicitudes; intente más "
+                    "tarde o desde otra red."
                 ) from exc
             except httpx.TransportError as exc:
                 last_error = f"{type(exc).__name__}: {exc}"
@@ -73,5 +73,5 @@ def get(url: str) -> httpx.Response:
                 time.sleep(delay)
                 delay *= 2
     raise SourceUnavailableError(
-        f"Could not download {url} after {RETRIES} attempts ({last_error})."
+        f"No se pudo descargar {url} después de {RETRIES} intentos ({last_error})."
     )

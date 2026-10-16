@@ -1,0 +1,6 @@
+# Entorno de desarrollo: el paquete en modo editable más las herramientas de pruebas y estilo.
+# Equivale a: pip install -e ".[dev]"
+-r requirements.txt
+-e .
+pytest>=8.0
+ruff>=0.6

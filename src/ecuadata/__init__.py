@@ -1,10 +1,14 @@
-"""Ecuadorian public data as pandas DataFrames.
+"""Datos públicos del Ecuador como DataFrames de pandas.
 
 >>> import ecuadata as ec
->>> gdp = ec.bce.series("pib_trimestral")
+>>> pib = ec.bce.pib_trimestral()
+>>> ipc = ec.inec.ipc(start="2020-01")
+>>> ec.list_sources()
+>>> ec.search("inflacion")
 """
 
-from ecuadata import bce, cache
+from ecuadata import bce, cache, inec
+from ecuadata._catalog import list_sources, search
 from ecuadata.config import config
 from ecuadata.exceptions import (
     EcuadataError,
@@ -24,4 +28,7 @@ __all__ = [
     "bce",
     "cache",
     "config",
+    "inec",
+    "list_sources",
+    "search",
 ]

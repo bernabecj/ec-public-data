@@ -24,7 +24,7 @@ def test_http_does_not_retry_connect_errors(mock_http):
         raise httpx.ConnectTimeout("timed out", request=request)
 
     seen = mock_http(refuse)
-    with pytest.raises(SourceUnavailableError, match="blocking"):
+    with pytest.raises(SourceUnavailableError, match="bloqueando"):
         http.get("https://example.org/x")
     assert len(seen) == 1
 
@@ -37,3 +37,9 @@ def test_http_throttles_consecutive_requests(mock_http, monkeypatch):
     http.get("https://example.org/a")
     http.get("https://example.org/b")
     assert sleeps and 0 < sleeps[-1] <= 2.0
+
+
+def test_cache_files_lists_json_data_files_but_not_sidecars():
+    cache.store("bce", "a.xlsx", b"data", "u")
+    cache.store("bce", "tree.json", b"[]", "u")
+    assert sorted(cache.files("bce")) == ["a.xlsx", "tree.json"]

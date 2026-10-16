@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "ecuadata"
 dynamic = ["version"]
-description = "Ecuadorian public data as pandas DataFrames."
+description = "Datos públicos del Ecuador como DataFrames de pandas."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "Jaime Herrera" }]
-keywords = ["ecuador", "open data", "pandas", "economics", "statistics", "bce", "inec"]
+keywords = ["ecuador", "datos abiertos", "open data", "pandas", "economia", "estadisticas", "bce", "inec"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Science/Research",

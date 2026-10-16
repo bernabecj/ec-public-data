@@ -1,12 +1,13 @@
-"""On-disk cache of raw downloaded files.
+"""Caché en disco de los archivos descargados.
 
-Files live at ``<cache_dir>/<provider>/<filename>``, each with a ``<filename>.json`` sidecar
-recording where and when it was downloaded. Only raw files are cached: parsing is cheap, and
-keeping the original bytes means a parser fix never requires a new download.
+Los archivos se guardan en ``<cache_dir>/<fuente>/<archivo>``, cada uno con un archivo
+``<archivo>.json`` al lado que registra de dónde y cuándo se descargó. Solo se guardan los
+archivos originales: procesarlos es barato, y conservar los bytes originales permite corregir
+un parser sin volver a descargar nada.
 
 >>> import ecuadata as ec
->>> ec.cache.clear("bce")  # one provider
->>> ec.cache.clear()       # everything
+>>> ec.cache.clear("bce")  # una fuente
+>>> ec.cache.clear()       # todo
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ def _meta_path(path: Path) -> Path:
 
 
 def store(provider: str, filename: str, content: bytes, url: str) -> CachedFile:
-    """Save ``content`` under ``provider/filename`` and return it as a CachedFile."""
+    """Guarda ``content`` como ``provider/filename`` y lo devuelve como CachedFile."""
     path = _path(provider, filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     retrieved_at = datetime.now(timezone.utc)
@@ -50,7 +51,7 @@ def store(provider: str, filename: str, content: bytes, url: str) -> CachedFile:
 
 
 def load(provider: str, filename: str, max_age: timedelta | None = None) -> CachedFile | None:
-    """Return the cached file, or None if it is missing, unreadable or ``max_age`` old or older."""
+    """Devuelve el archivo del caché; None si no existe, no se puede leer o ya tiene ``max_age``."""
     path = _path(provider, filename)
     try:
         meta = json.loads(_meta_path(path).read_text(encoding="utf-8"))
@@ -67,15 +68,20 @@ def load(provider: str, filename: str, max_age: timedelta | None = None) -> Cach
 
 
 def files(provider: str) -> list[str]:
-    """Names of the files cached for ``provider``, newest first."""
+    """Nombres de los archivos en caché de ``provider``, del más reciente al más antiguo."""
     folder = config.cache_dir / provider
     if not folder.is_dir():
         return []
-    found = [p for p in folder.iterdir() if p.is_file() and p.suffix != ".json"]
+    found = [p for p in folder.iterdir() if p.is_file() and not _is_sidecar(p)]
     return [p.name for p in sorted(found, key=lambda p: p.stat().st_mtime, reverse=True)]
 
 
+def _is_sidecar(path: Path) -> bool:
+    """``x.xlsx.json`` is the sidecar of ``x.xlsx``; a data file ``x.json`` is not a sidecar."""
+    return path.suffix == ".json" and path.with_suffix("").is_file()
+
+
 def clear(provider: str | None = None) -> None:
-    """Delete the cache for one provider, or the whole cache when ``provider`` is None."""
+    """Borra el caché de una fuente, o todo el caché si ``provider`` es None."""
     target = config.cache_dir if provider is None else config.cache_dir / provider
     shutil.rmtree(target, ignore_errors=True)

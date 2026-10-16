@@ -27,7 +27,7 @@ def to_number(value: object) -> float:
     if value is None:
         return math.nan
     if isinstance(value, bool):
-        raise TypeError(f"Unexpected boolean cell value {value!r}")
+        raise TypeError(f"Valor booleano inesperado en la celda: {value!r}")
     if isinstance(value, (int, float)):
         return float(value)
     text = _FOOTNOTE.sub("", str(value).strip()).replace("\xa0", "").replace(" ", "")
@@ -90,4 +90,86 @@ def parse_quarter(value: object) -> pd.Period:
             q = match["q"]
             quarter = _ROMAN.get(q) or int(q)
             return pd.Period(year=int(match["year"]), quarter=quarter, freq="Q")
-    raise ValueError(f"Not a recognizable quarter label: {value!r}")
+    raise ValueError(f"No se reconoce como etiqueta de trimestre: {value!r}")
+
+
+# Spanish month names and their three-letter abbreviations as used by BCE and INEC.
+SPANISH_MONTHS = {
+    "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6, "julio": 7,
+    "agosto": 8, "septiembre": 9, "setiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12,
+}  # fmt: skip
+_MONTH_ABBREVIATIONS = {name[:3]: number for name, number in SPANISH_MONTHS.items()}
+_MONTH_ABBREVIATIONS["sep"] = 9
+
+
+def month_number(name: str) -> int:
+    """``"Ene"``, ``"enero"``, ``"sept"`` ... -> 1, 1, 9."""
+    key = strip_accents(name.strip().lower().rstrip("."))
+    if key in SPANISH_MONTHS:
+        return SPANISH_MONTHS[key]
+    if key[:3] in _MONTH_ABBREVIATIONS:
+        return _MONTH_ABBREVIATIONS[key[:3]]
+    raise ValueError(f"No es un nombre de mes en español: {name!r}")
+
+
+_MONTH_PATTERNS = [
+    # Ene 2006, enero 2026, Enero de 2026, ene-2026
+    re.compile(r"^(?P<month>[A-Za-z\u00C0-\u00FF]{3,10})\.?\s*(?:de\s+)?[-/ ]?\s*(?P<year>\d{4})$"),
+    # 2026-01, 2026/01, 2026M01, 2026.01, 202601
+    re.compile(r"^(?P<year>\d{4})\s*[-/.M]?\s*(?P<mnum>\d{2})$"),
+]
+
+
+def parse_month(value: object) -> pd.Period:
+    """Parse a month label used by Ecuadorian publishers into a monthly Period.
+
+    >>> parse_month("Ene 2006")
+    Period('2006-01', 'M')
+    >>> parse_month("2026-08")
+    Period('2026-08', 'M')
+    """
+    if isinstance(value, pd.Period):
+        return value.asfreq("M")
+    if isinstance(value, (datetime, date, pd.Timestamp)):
+        return pd.Period(value, freq="M")
+    text = str(value).strip()
+    for pattern in _MONTH_PATTERNS:
+        match = pattern.match(text)
+        if match:
+            groups = match.groupdict()
+            month = int(groups["mnum"]) if groups.get("mnum") else month_number(groups["month"])
+            if not 1 <= month <= 12:
+                break
+            return pd.Period(year=int(groups["year"]), month=month, freq="M")
+    raise ValueError(f"No se reconoce como etiqueta de mes: {value!r}")
+
+
+# "Ene 2015 (05 al 11)", "Oct 2026 (26 al 01 nov)", "Dic 2015 (28 al 03 ene 2016)"
+_WEEK_PATTERN = re.compile(
+    r"^(?P<month>[A-Za-z\u00C0-\u00FF]{3,10})\.?\s+(?P<year>\d{4})\s*\(\s*(?P<day>\d{1,2})"
+    r"(?:\s+(?P<start_month>[A-Za-z\u00C0-\u00FF]{3,10}))?\s+al\s+.*\)$"
+)
+
+
+def parse_week(value: object) -> pd.Period:
+    """Parse a BCE weekly label into a Monday-to-Sunday weekly Period.
+
+    >>> parse_week("Ene 2015 (05 al 11)")
+    Period('2015-01-05/2015-01-11', 'W-SUN')
+    """
+    match = _WEEK_PATTERN.match(str(value).strip())
+    if not match:
+        raise ValueError(f"No se reconoce como etiqueta de semana: {value!r}")
+    month = month_number(match["start_month"] or match["month"])
+    start = date(int(match["year"]), month, int(match["day"]))
+    return pd.Period(start, freq="W-SUN")
+
+
+def parse_year(value: object) -> pd.Period:
+    """``2025``, ``"2025"``, ``2025.0`` -> yearly Period."""
+    if isinstance(value, pd.Period):
+        return value.asfreq("Y")
+    text = str(value).strip()
+    if re.fullmatch(r"\d{4}(\.0)?", text):
+        return pd.Period(year=int(float(text)), freq="Y")
+    raise ValueError(f"No se reconoce como etiqueta de año: {value!r}")

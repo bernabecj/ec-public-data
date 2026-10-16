@@ -1,195 +1,229 @@
 # ecuadata
 
-**Ecuadorian public data as pandas DataFrames.**
+**Datos públicos del Ecuador como DataFrames de pandas.**
 
-Ecuador publishes plenty of useful public data: Banco Central economic series, INEC statistics, SRI tax figures, municipal open data portals. Getting at it is the hard part. It is spread across web pages, Excel workbooks with merged headers, PDFs, CSVs with decimal commas, and URLs that change between releases.
+El Ecuador publica muchos datos útiles: series económicas del Banco Central, estadísticas del INEC, cifras tributarias del SRI. Lo difícil es llegar a ellos: están repartidos en páginas web, libros de Excel con encabezados combinados, PDF, archivos con coma decimal y enlaces que cambian con cada publicación.
 
-`ecuadata` puts one Python API in front of all of it. You ask for a dataset and get back a clean, typed `pandas.DataFrame`. Fetching, parsing, and caching happen behind that call.
+`ecuadata` pone una sola API de Python delante de todo eso. Usted pide un conjunto de datos y recibe un `pandas.DataFrame` limpio y tipado. La descarga, el procesamiento y el caché ocurren detrás de esa llamada.
 
-> **Status: early development.** The API below is the design target. Sources are added one at a time; see the [source table](#sources) for what works today.
+> **Estado: desarrollo temprano.** Las fuentes se agregan una por una; vea la [tabla de fuentes](#fuentes) y [docs/ESTADO.md](docs/ESTADO.md) para saber qué funciona hoy y con qué limitaciones.
 
 ---
 
-## Example
+## Ejemplo
 
 ```python
 import ecuadata as ec
 
-# Banco Central del Ecuador: quarterly GDP
-gdp = ec.bce.series("pib_trimestral")
+# Banco Central del Ecuador: PIB trimestral por componente del gasto
+pib = ec.bce.pib_trimestral()                              # USD encadenados 2018, desestacionalizado
+crecimiento = ec.bce.pib_trimestral(measure="growth_yoy")  # variación interanual, %
 
-# INEC: monthly consumer price index
-cpi = ec.inec.ipc(start="2020-01", end="2025-12")
+# BCE: remesas de trabajadores y tasas de interés
+remesas = ec.bce.remesas()                                 # trimestral, USD y número de giros
+por_pais = ec.bce.remesas(by="country", frequency="A")     # una columna por país
+tasas = ec.bce.tasas_interes()                             # activa, pasiva, legal, máxima convencional
 
-# SRI: tax collection by tax type
-tax = ec.sri.recaudacion(year=2024)
+# INEC: índice de precios al consumidor e inflación
+ipc = ec.inec.ipc(start="2020-01")
+inflacion = ec.inec.ipc(measure="annual_change")["general"]
 
-# Find out what is available
+# Qué hay disponible
 ec.list_sources()
 ec.search("inflacion")
 ```
 
-Every call returns a DataFrame that follows the same rules:
+Todas las funciones devuelven un DataFrame que sigue las mismas reglas:
 
-- **Dates are real dates.** Time series use a `DatetimeIndex` or `PeriodIndex` at the source's frequency.
-- **Numbers are numbers.** Decimal commas, thousands separators, footnote markers, and `"-"` / `"n.d."` placeholders become proper floats and `NaN`.
-- **Columns are `snake_case`.** The original source labels are kept in the metadata.
-- **Metadata travels with the data.** `df.attrs` records the source, URL, units, and retrieval time:
+- **Las fechas son fechas.** Las series de tiempo usan un `PeriodIndex` con la frecuencia de la fuente (`Q`, `M`, `A`).
+- **Los números son números.** Comas decimales, separadores de miles, notas al pie y marcadores como `"-"` o `"n.d."` se convierten en `float` y `NaN`.
+- **Las columnas están en `snake_case`.** Las etiquetas originales de la fuente se conservan en los metadatos.
+- **Los metadatos viajan con los datos.** `df.attrs` registra la fuente, la URL, las unidades y el momento de la descarga:
 
 ```python
->>> cpi.attrs
+>>> ipc.attrs
 {
     "source": "INEC",
+    "via": "BCEData del BCE, cuadro 4.2.1 Índice de Precios al Consumidor",
     "dataset": "ipc",
-    "url": "https://www.ecuadorencifras.gob.ec/...",
-    "units": "index (2014 = 100)",
-    "retrieved_at": "2026-10-13T16:30:00-05:00",
-    "original_columns": {...},
+    "measure": "index",
+    "units": "índice (ver attrs['base'])",
+    "base": "Índice, julio 2025-junio 2026=100; ...",
+    "url": "https://contenido.bce.fin.ec/wp-json/bcedata/v1/grid?...",
+    "retrieved_at": "2026-10-16T15:56:48+00:00",
+    "original_columns": {"general": "Índice General - IPC", ...},
 }
 ```
 
 ---
 
-## Installation
+## Instalación
 
 ```bash
 pip install ecuadata
 ```
 
-Pure Python, 3.10 or newer. Dependencies: `pandas`, `httpx`, `openpyxl`, `platformdirs`. You don't need an API key, an account, or a Java runtime.
+Python puro, 3.10 o superior. Dependencias: `pandas`, `httpx`, `openpyxl`, `platformdirs`. No necesita clave de API, cuenta ni Java.
 
-For development:
+### Entorno virtual (recomendado)
+
+Use un entorno virtual para no mezclar las dependencias con las del sistema.
+
+Windows (PowerShell):
+
+```powershell
+git clone https://github.com/bernabecj/ec-public-data.git
+cd ec-public-data
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+```
+
+Linux / macOS:
 
 ```bash
 git clone https://github.com/bernabecj/ec-public-data.git
 cd ec-public-data
-pip install -e ".[dev]"
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
 ```
 
+`requirements.txt` contiene solo las dependencias de ejecución; `requirements-dev.txt` añade el
+paquete en modo editable, `pytest` y `ruff` (equivale a `pip install -e ".[dev]"`). Si PowerShell
+bloquea la activación, ejecute una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+Para salir del entorno: `deactivate`.
+
 ---
 
-## Sources
+## Fuentes
 
-| Provider | Dataset | Function | Status |
+| Institución | Conjunto de datos | Función | Estado |
 |---|---|---|---|
-| Banco Central del Ecuador (BCE) | Quarterly national accounts | `ec.bce.series("pib_trimestral")` | Planned |
-| BCE | Monthly statistical bulletin series | `ec.bce.series(...)` | Planned |
-| BCE | Interest rates | `ec.bce.tasas_interes()` | Planned |
-| BCE | Remittances | `ec.bce.remesas()` | Planned |
-| INEC | Consumer price index (IPC) | `ec.inec.ipc()` | Planned |
-| INEC | Employment survey indicators (ENEMDU) | `ec.inec.enemdu()` | Planned |
-| INEC | Poverty and inequality | `ec.inec.pobreza()` | Planned |
-| SRI | Tax collection statistics | `ec.sri.recaudacion()` | Planned |
-| Municipal portals | Quito / Guayaquil open data | `ec.municipal.quito(...)` | Planned |
+| Banco Central del Ecuador (BCE) | Cuentas nacionales trimestrales: PIB por componente del gasto | `ec.bce.pib_trimestral()` | Experimental |
+| BCE | Remesas de trabajadores recibidas y enviadas | `ec.bce.remesas()` | Experimental |
+| BCE | Tasas de interés referenciales y por segmento de crédito | `ec.bce.tasas_interes()` | Experimental |
+| INEC | Índice de precios al consumidor (IPC) e inflación | `ec.inec.ipc()` | Experimental |
+| INEC | Indicadores de empleo (ENEMDU) | `ec.inec.enemdu()` | Planificado |
+| INEC | Pobreza y desigualdad | `ec.inec.pobreza()` | Planificado |
+| SRI | Estadísticas de recaudación | `ec.sri.recaudacion()` | Planificado |
+| Portales municipales | Datos abiertos de Quito / Guayaquil | `ec.municipal.quito(...)` | Planificado |
 
-Status values: **Planned**, **Experimental** (works, but the output schema may still change), **Stable**.
+Estados: **Planificado**, **Experimental** (funciona, pero el esquema de salida todavía puede cambiar), **Estable**.
+
+Detalles de cada fuente, con columnas, unidades y particularidades: [docs/fuentes/bce.md](docs/fuentes/bce.md) y [docs/fuentes/inec.md](docs/fuentes/inec.md).
 
 ---
 
-## Caching
+## Caché
 
-Government sites are slow and sometimes down, so every download is cached on disk.
+Los sitios del gobierno son lentos y a veces están caídos, así que cada descarga se guarda en disco.
 
 ```python
-ec.config.cache_dir          # defaults to the OS user cache directory
-ec.config.cache_ttl = "7d"   # how long before data is re-fetched
+ec.config.cache_dir          # por defecto, la carpeta de caché del usuario en el sistema
+ec.config.cache_ttl = "7d"   # cuánto tiempo reutilizar una descarga antes de refrescarla
 
-ec.inec.ipc(refresh=True)    # bypass the cache for this call
-ec.cache.clear()             # clear everything
-ec.cache.clear("bce")        # clear one provider
+ec.inec.ipc(refresh=True)    # ignorar el caché en esta llamada
+ec.cache.clear()             # borrar todo
+ec.cache.clear("bce")        # borrar una fuente
 ```
 
-The cache stores the **raw downloaded files** as well as the parsed results. If a parser changes, it can re-parse from the stored files without downloading anything again.
+El caché guarda los **archivos originales descargados** (libros de Excel, respuestas JSON). Si un parser cambia, puede volver a procesar los archivos guardados sin descargar nada.
 
-Set `ec.config.offline = True` to read only from the cache. Calls that would need a download then raise an error.
+Con `ec.config.offline = True` se lee únicamente del caché. Las llamadas que necesitarían descargar algo lanzan `OfflineError`.
 
 ---
 
-## Design
+## Diseño
 
-Each source is a self-contained module with the same four parts:
+Cada fuente es un módulo autónomo con las mismas partes:
 
 ```
-fetch   → download the raw file(s): HTML, XLSX, CSV, PDF
-parse   → turn the raw file into a tidy, typed DataFrame
-cache   → store the raw files and parsed output on disk
-expose  → a small public function with documented parameters
+fetch   → descargar los archivos originales: XLSX, JSON, HTML
+parse   → convertir el archivo en un DataFrame ordenado y tipado
+cache   → guardar los archivos originales en disco
+expose  → una función pública pequeña con parámetros documentados
 ```
 
-Fetch and parse are kept apart on purpose. Parsers are pure functions from bytes to a DataFrame, so they can be tested without network access. When an institution changes a spreadsheet layout, the fix is in the parser alone.
+Descargar y procesar están separados a propósito. Los parsers son funciones puras de bytes a DataFrame, así que se prueban sin red. Cuando una institución cambia el formato de un archivo, la corrección está solo en el parser.
 
 ```
 src/ecuadata/
-├── __init__.py
+├── __init__.py        # ec.bce, ec.inec, ec.config, ec.cache, ec.list_sources, ec.search
+├── _catalog.py        # catálogo de conjuntos de datos
 ├── config.py
 ├── cache.py
-├── http.py            # shared client: retries, timeouts, user agent
-├── _parsing.py        # shared helpers: decimal commas, Spanish month names, merged headers
+├── http.py            # cliente compartido: reintentos, pausas entre solicitudes, user agent
+├── _parsing.py        # utilidades: comas decimales, meses en español, etiquetas de trimestre
 ├── bce/
-│   ├── __init__.py
-│   ├── fetch.py
-│   └── parse.py
-├── inec/
-├── sri/
-└── municipal/
+│   ├── fetch.py       # libros de cuentas nacionales trimestrales
+│   ├── parse.py
+│   ├── bcedata.py     # cliente del API REST de BCEData (portal de datos del BCE)
+│   ├── _remesas.py
+│   └── _tasas.py
+└── inec/
+    └── _ipc.py
 tests/
-├── fixtures/          # recorded raw responses, one folder per source
-│   ├── bce/
-│   └── inec/
+├── fixtures/          # archivos reales grabados, una carpeta por fuente
 ├── bce/
 └── inec/
+scripts/
+└── record_fixtures.py # graba archivos reales de las instituciones para las pruebas
 ```
 
 ---
 
-## Testing
+## Pruebas
 
-By default the tests use **recorded responses** and make no network calls. Each source has real files saved under `tests/fixtures/` as the institution served them. The parser tests run against those files and check column names, dtypes, index frequency, and a few known values.
+Por defecto las pruebas usan **respuestas grabadas** y no tocan la red. Cada fuente tiene archivos reales guardados en `tests/fixtures/`, tal como los sirvió la institución. Las pruebas de los parsers verifican nombres de columnas, tipos, frecuencia del índice y algunos valores conocidos.
 
 ```bash
-pytest                 # fast, offline, deterministic
-pytest -m live         # opt-in: hits the real sources
+pytest                 # rápido, sin red, determinista
+pytest -m live         # opcional: consulta las fuentes reales
+pytest -x -vv          # detenerse en la primera falla y mostrar el detalle completo
+pytest --lf            # repetir solo las pruebas que fallaron la última vez
 ```
 
-The `live` tests catch the most common failure for a library like this: a source quietly changing its format. When one fails, the fix is:
+Las pruebas `live` detectan la falla más común en una librería como esta: una fuente que cambia su formato sin avisar. Cuando una falla, la corrección es:
 
-1. Record a fresh fixture.
-2. Update the parser until the tests pass.
-3. Commit both together.
-
----
-
-## Adding a source
-
-Each new source follows the same checklist:
-
-1. **Fetch.** Find the stable URL or URL pattern and write `fetch.py`.
-2. **Parse.** Write `parse.py` to turn raw bytes into a DataFrame that follows the conventions above.
-3. **Cache.** Register the dataset with the cache layer (usually a single line).
-4. **Test.** Save a real response to `tests/fixtures/<provider>/` and write parser tests against it.
-5. **Document.** Add a row to the source table and a docstring with an example.
-
-Pull requests that add a source are welcome. Please open an issue first so two people don't build the same one.
+1. Grabar un archivo nuevo con `python scripts/record_fixtures.py`.
+2. Ajustar el parser hasta que las pruebas pasen.
+3. Subir ambos cambios juntos.
 
 ---
 
-## Roadmap
+## Agregar una fuente
 
-- [ ] Core: HTTP client, cache, config, shared parsing helpers
-- [ ] First source end to end: BCE quarterly GDP
-- [ ] INEC IPC
-- [ ] SRI tax collection
-- [ ] `list_sources()` and `search()` catalogue
-- [ ] Documentation site
-- [ ] First release on PyPI
-- [ ] Municipal open data (Quito, Guayaquil)
+1. **Fetch.** Encontrar la URL estable (o el patrón de URL) y escribir la descarga.
+2. **Parse.** Convertir los bytes en un DataFrame que siga las convenciones de arriba.
+3. **Catálogo.** Agregar la entrada en `_catalog.py`.
+4. **Pruebas.** Grabar una respuesta real en `tests/fixtures/<fuente>/` y escribir pruebas del parser.
+5. **Documentar.** Agregar la fila en la tabla de fuentes y la página en `docs/fuentes/`.
+
+Las contribuciones son bienvenidas. Por favor abra un issue antes, para que dos personas no construyan lo mismo.
 
 ---
 
-## Disclaimer
+## Hoja de ruta
 
-`ecuadata` is an independent project. It is not affiliated with or endorsed by the Banco Central del Ecuador, INEC, SRI, or any municipality. The data belongs to its publishers and is subject to their terms. Always check `df.attrs["url"]` and cite the original source.
+- [x] Núcleo: cliente HTTP, caché, configuración, utilidades de procesamiento
+- [x] Primera fuente de extremo a extremo: PIB trimestral del BCE
+- [x] IPC del INEC
+- [x] Remesas y tasas de interés del BCE
+- [x] Catálogo: `list_sources()` y `search()`
+- [ ] ENEMDU y pobreza (INEC)
+- [ ] Recaudación del SRI
+- [ ] Sitio de documentación
+- [ ] Primera publicación en PyPI
+- [ ] Datos abiertos municipales (Quito, Guayaquil)
 
-## License
+---
+
+## Aviso
+
+`ecuadata` es un proyecto independiente. No está afiliado ni respaldado por el Banco Central del Ecuador, el INEC, el SRI ni ningún municipio. Los datos pertenecen a quienes los publican y están sujetos a sus términos. Revise siempre `df.attrs["url"]` y cite la fuente original.
+
+## Licencia
 
 [MIT](LICENSE)

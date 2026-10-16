@@ -109,17 +109,18 @@ def fetch(
     refresh: bool = False,
     today: date | None = None,
 ) -> Release:
-    """Return the workbook for ``table``, from the cache when possible.
+    """Devuelve el libro de Excel de ``table``, desde el caché cuando es posible.
 
     Args:
-        table: File prefix, e.g. ``"tou"``.
-        release: Quarter of a specific release (``"2025Q2"``). None means the latest one.
-        refresh: Ignore the cache and download again.
-        today: Reference date for finding the latest release (for tests).
+        table: Prefijo del archivo, p. ej. ``"tou"``.
+        release: Trimestre de una publicación específica (``"2025Q2"``). None significa la
+            más reciente.
+        refresh: Ignorar el caché y volver a descargar.
+        today: Fecha de referencia para buscar la publicación más reciente (para pruebas).
 
     Raises:
-        OfflineError: offline mode is on and nothing suitable is cached.
-        SourceUnavailableError: BCE is unreachable, or no release was found.
+        OfflineError: el modo sin conexión está activo y no hay nada útil en el caché.
+        SourceUnavailableError: el BCE no responde o no se encontró ninguna publicación.
     """
     if release is not None:
         return _fetch_release(table, to_quarter(release), refresh)
@@ -131,12 +132,14 @@ def _fetch_release(table: str, quarter: pd.Period, refresh: bool) -> Release:
     if not refresh and (cached := _from_cache(table, quarter)):
         return cached
     if config.offline:
-        raise OfflineError(f"Release {quarter} of BCE table {table!r} is not in the cache.")
+        raise OfflineError(
+            f"La publicación {quarter} de la tabla {table!r} del BCE no está en el caché."
+        )
     downloaded = _download(table, quarter)
     if downloaded is None:
         raise SourceUnavailableError(
-            f"BCE has not published release {quarter} of table {table!r} "
-            f"(looked for {url_for(table, quarter)})."
+            f"El BCE no ha publicado la entrega {quarter} de la tabla {table!r} "
+            f"(se buscó {url_for(table, quarter)})."
         )
     return downloaded
 
@@ -146,7 +149,7 @@ def _fetch_latest(table: str, refresh: bool, today: date) -> Release:
     if config.offline:
         if cached_quarters:
             return _from_cache(table, cached_quarters[0])
-        raise OfflineError(f"No release of BCE table {table!r} is in the cache.")
+        raise OfflineError(f"Ninguna publicación de la tabla {table!r} del BCE está en el caché.")
     if not refresh and cached_quarters:
         fresh = _from_cache(table, cached_quarters[0], max_age=config.cache_ttl)
         if fresh:
@@ -159,7 +162,7 @@ def _fetch_latest(table: str, refresh: bool, today: date) -> Release:
         if downloaded:
             return downloaded
     raise SourceUnavailableError(
-        f"No release of BCE table {table!r} found between {candidates[-1]} and "
-        f"{candidates[0]} (e.g. {url_for(table, candidates[0])}). The bulletin numbering "
-        "may have changed."
+        f"No se encontró ninguna publicación de la tabla {table!r} del BCE entre "
+        f"{candidates[-1]} y {candidates[0]} (p. ej. {url_for(table, candidates[0])}). "
+        "Puede que haya cambiado la numeración de los boletines."
     )

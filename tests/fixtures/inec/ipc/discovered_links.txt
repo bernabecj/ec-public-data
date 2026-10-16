@@ -1,0 +1,10 @@
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/SERIE%20HISTORICA%20IPC_12_2018.xls
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/SERIES%20IPC/ipc_ind_nac_reg_ciud_12_2018.xls
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/SERIES%20IPC/ipc_var_men_nac_reg_ciud_12_2018.xls
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/SERIES%20IPC/ipc_var_anu_nac_reg_ciud_12_2018.xls
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/SERIES%20IPC/ipc_var_acum_nac_reg_ciud_12_2018.xls
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/INDICADORES%20DESCRIPTIVOS/ipc_indicadores_descriptivos_12_2018.xlsx
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/GRAFICOS%20IND%20Y%20VAR/ipc_graficos_ind_nac_reg_ciud_12_2018.xls
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/GRAFICOS%20IND%20Y%20VAR/ipc_graficos_var_men_nac_reg_ciud_12_2018.xls
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/GRAFICOS%20IND%20Y%20VAR/ipc_graficos_var_anu_nac_reg_ciud_12_2018.xls
+https://www.ecuadorencifras.gob.ec/documentos/web-inec/Inflacion/2018/Diciembre-2018/Historicos_completo/GRAFICOS%20IND%20Y%20VAR/ipc_graficos_var_acum_nac_reg_ciud_12_2018.xls
